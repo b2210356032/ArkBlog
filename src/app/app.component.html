@@ -1,0 +1,57 @@
+<nav class="navbar">
+  <div class="navbar-left">
+    <span class="navbar-brand">ARKBLOG</span>
+    <button class="nav-button" routerLink="/" (click)="goToHome()">Home</button>
+    <div class="dropdown" (mouseenter)="showCategories = true; getCategories()" (mouseleave)="showCategories = false">
+      <button class="nav-button">Categories</button>
+      <div class="dropdown-content" *ngIf="showCategories">
+        <a *ngFor="let tag of categories" routerLink="/category/{{tag.id}}">{{tag.tagName}}</a>
+      </div>
+    </div>
+    <button class="nav-button">Authors</button>
+  </div>
+  <div class="navbar-right">
+    <input type="text" placeholder="Search..." class="search-bar">
+    <ng-container *ngIf="!isLoggedIn">
+      <button class="nav-button" (click)="openLogin()">Login/Register</button>
+    </ng-container>
+    <ng-container *ngIf="isLoggedIn">
+      <button class="nav-button" (click)="openEditor()">
+        <span class="plus-icon">+</span> New Post
+      </button>
+      <button class="nav-button" (click)="onLogout()">Logout</button>
+    </ng-container>
+  </div>
+</nav>
+
+<div class="main-content-wrapper">
+  <div class="main-container">
+    
+    
+    <app-blog-list 
+      *ngIf="!showEditor && !showPostDetail" 
+      (openEditor)="openEditor()" 
+      (viewPost)="viewPost($event)">
+    </app-blog-list>
+  </div>
+  
+  <app-ngx-editor *ngIf="showEditor" (close)="onEditorClose()" (postCreated)="onPostCreated()" [postId]="postId" [authorId]="authorId"></app-ngx-editor>
+  
+  <app-blog-post-detail *ngIf="showPostDetail" [post]="selectedPost" (goBack)="closePostDetail()"></app-blog-post-detail>
+  
+  <app-login 
+    *ngIf="showLogin" 
+    (close)="closeLogin()" 
+    (switchToRegister)="switchToRegister()"
+    (loginSuccess)="onLoginSuccess()">
+  </app-login>
+  
+  <app-register 
+    *ngIf="showRegister" 
+    (close)="closeRegister()" 
+    (switchToLogin)="switchToLogin()"
+    (registerSuccess)="onRegisterSuccess()">
+  </app-register>
+</div>
+
+<router-outlet />
