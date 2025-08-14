@@ -3,40 +3,66 @@ import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { BlogService, BlogPost } from '../services/blog.service';
 import { AuthService } from '../services/auth.service';
-import { CarouselModule, OwlOptions } from 'ngx-owl-carousel-o';
+import { CarouselModule } from 'primeng/carousel';
+import { ButtonModule } from 'primeng/button';
+import { TagModule } from 'primeng/tag';
 
 @Component({
   selector: 'app-blog-list',
   standalone: true,
-    imports: [CommonModule, RouterModule, CarouselModule],
+    imports: [CommonModule, RouterModule, CarouselModule, ButtonModule, TagModule],
   template: `
     <div class="blog-container">
-             
-
       <!-- Top Posts Section -->
       <div class="section-header">
         <h2>Top Posts</h2>
         <button class="show-all-btn">Show All</button>
       </div>
-            <div class="posts-grid" *ngIf="topPosts.length > 0; else noTopPosts">
-        <div class="post-card" *ngFor="let post of topPosts" (click)="viewPostDetail(post)">
-          <div class="post-image" *ngIf="post.coverImageUrl">
-            <img [src]="post.coverImageUrl" [alt]="post.title">
-            <div class="click-count-overlay" *ngIf="post.clickCount !== undefined && post.clickCount !== null">
-              {{ post.clickCount }}
+                  <p-carousel [value]="topPosts" [numVisible]="5" [numScroll]="1" [circular]="true" [responsiveOptions]="responsiveOptions">
+        <ng-template let-post #item>
+          <div class="post-card" (click)="viewPostDetail(post)">
+            <div class="post-image" *ngIf="post.coverImageUrl">
+              <img [src]="post.coverImageUrl" [alt]="post.title">
+              <div class="click-count-overlay" *ngIf="post.clickCount !== undefined && post.clickCount !== null">
+                {{ post.clickCount }}
+              </div>
+            </div>
+            <div class="post-tags" *ngIf="post.tags && post.tags.length > 0">
+              <button *ngFor="let tag of post.tags" class="tag-button" (click)="$event.stopPropagation(); onTagClick(tag.tagName)">{{ tag.tagName }}</button>
+            </div>
+            <div class="post-content">
+              <h2 class="post-title">{{ post.title }}</h2>
             </div>
           </div>
-          <div class="post-tags" *ngIf="post.tags && post.tags.length > 0">
-            <span *ngFor="let tag of post.tags; let last = last">{{ tag.tagName }}{{ !last ? ' / ' : '' }}</span>
-          </div>
-          <div class="post-content">
-            <h2 class="post-title">{{ post.title }}</h2>
+        </ng-template>
+    </p-carousel>
+
+      <!-- Tagged Posts Section -->
+      <div *ngIf="showTaggedPosts" class="tagged-posts-section">
+        <div class="section-header">
+          <h2>Posts Tagged: {{ selectedTag }}</h2>
+          <button class="show-all-btn" (click)="clearTaggedPosts()">Back to All Posts</button>
+        </div>
+        <div class="posts-grid" *ngIf="taggedPosts.length > 0; else noTaggedPosts">
+          <div class="post-card" *ngFor="let post of taggedPosts" (click)="viewPostDetail(post)">
+            <div class="post-image" *ngIf="post.coverImageUrl">
+              <img [src]="post.coverImageUrl" [alt]="post.title">
+              <div class="click-count-overlay" *ngIf="post.clickCount !== undefined && post.clickCount !== null">
+                {{ post.clickCount }}
+              </div>
+            </div>
+            <div class="post-tags" *ngIf="post.tags && post.tags.length > 0">
+              <button *ngFor="let tag of post.tags" class="tag-button" (click)="$event.stopPropagation(); onTagClick(tag.tagName)">{{ tag.tagName }}</button>
+            </div>
+            <div class="post-content">
+              <h2 class="post-title">{{ post.title }}</h2>
+            </div>
           </div>
         </div>
+        <ng-template #noTaggedPosts>
+          <div class="no-posts-section">No posts found with this tag.</div>
+        </ng-template>
       </div>
-      <ng-template #noTopPosts>
-        <div class="no-posts-section">No top posts available.</div>
-      </ng-template>
 
       <!-- Editor Picks Section -->
       <div class="section-header">
@@ -49,7 +75,7 @@ import { CarouselModule, OwlOptions } from 'ngx-owl-carousel-o';
             <img [src]="post.coverImageUrl" [alt]="post.title">
           </div>
           <div class="post-tags" *ngIf="post.tags && post.tags.length > 0">
-            <span *ngFor="let tag of post.tags; let last = last">{{ tag.tagName }}{{ !last ? ' / ' : '' }}</span>
+            <button *ngFor="let tag of post.tags" class="tag-button" (click)="$event.stopPropagation(); onTagClick(tag.tagName)">{{ tag.tagName }}</button>
           </div>
           <div class="post-content">
             <h2 class="post-title">{{ post.title }}</h2>
@@ -74,7 +100,7 @@ import { CarouselModule, OwlOptions } from 'ngx-owl-carousel-o';
             </div>
           </div>
           <div class="post-tags" *ngIf="post.tags && post.tags.length > 0">
-            <span *ngFor="let tag of post.tags; let last = last">{{ tag.tagName }}{{ !last ? ' / ' : '' }}</span>
+            <button *ngFor="let tag of post.tags" class="tag-button" (click)="$event.stopPropagation(); onTagClick(tag.tagName)">{{ tag.tagName }}</button>
           </div>
           <div class="post-content">
             <h2 class="post-title">{{ post.title }}</h2>
@@ -91,20 +117,23 @@ import { CarouselModule, OwlOptions } from 'ngx-owl-carousel-o';
       </div>
     </div>
   `,
-  styles: [`
+  styles: [
+    `
     .blog-container {
-      max-width: 1200px;
+      /* max-width: 1200px; */ /* Removed max-width to use full screen width */
       margin: 0 auto;
       padding: 2rem;
       min-height: 100vh;
       background: #f8f9fa;
     }
 
-    
+    .p-carousel {
+      padding: 0 0.5rem; /* Smaller padding to the carousel itself */
+    }
 
-    
-
-    
+    .p-carousel .p-carousel-item {
+      padding: 0 0.25rem; /* Smaller padding between carousel items */
+    }
 
     .posts-grid {
       display: grid;
@@ -119,6 +148,7 @@ import { CarouselModule, OwlOptions } from 'ngx-owl-carousel-o';
       box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
       transition: all 0.3s ease;
       cursor: pointer;
+      margin: 0.5rem; /* Add margin to each post-card for separation */
     }
 
     .post-card:hover {
@@ -145,6 +175,10 @@ import { CarouselModule, OwlOptions } from 'ngx-owl-carousel-o';
 
     .post-content {
       padding: 1.5rem;
+      height: 120px; /* Fixed height for consistent card size */
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
     }
 
     .post-title {
@@ -154,9 +188,10 @@ import { CarouselModule, OwlOptions } from 'ngx-owl-carousel-o';
       margin: 0 0 0.5rem 0;
       line-height: 1.3;
       display: -webkit-box;
-      -webkit-line-clamp: 2;
+      -webkit-line-clamp: 2; /* Limit to 2 lines */
       -webkit-box-orient: vertical;
       overflow: hidden;
+      text-overflow: ellipsis;
     }
 
     .post-meta {
@@ -202,15 +237,23 @@ import { CarouselModule, OwlOptions } from 'ngx-owl-carousel-o';
       flex-wrap: wrap;
       gap: 0.5rem;
       margin-bottom: 1rem;
+      justify-content: center; /* Center the tags */
     }
 
-    .tag {
+    .tag-button {
       background: #e9ecef;
       color: #495057;
       padding: 0.25rem 0.75rem;
       border-radius: 20px;
       font-size: 0.75rem;
       font-weight: 500;
+      border: none;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    .tag-button:hover {
+      background: #d4d7da;
     }
 
     .post-status {
@@ -337,7 +380,8 @@ import { CarouselModule, OwlOptions } from 'ngx-owl-carousel-o';
       }
     }
 
-    `]})
+    `]
+})
 export class BlogListComponent implements OnInit, OnDestroy, OnChanges {
   @Output() openEditor = new EventEmitter<void>();
   @Output() viewPost = new EventEmitter<BlogPost>();
@@ -354,6 +398,11 @@ export class BlogListComponent implements OnInit, OnDestroy, OnChanges {
   postWidth: number = 350; // Assuming a default post width
   postGap: number = 32; // 2rem = 32px
 
+  responsiveOptions: any[] | undefined;
+  taggedPosts: BlogPost[] = [];
+  showTaggedPosts: boolean = false;
+  selectedTag: string = '';
+
   constructor(private blogService: BlogService, private authService: AuthService) {}
 
   get isAuthenticated(): boolean {
@@ -362,6 +411,23 @@ export class BlogListComponent implements OnInit, OnDestroy, OnChanges {
 
   ngOnInit() {
     this.loadPosts();
+    this.responsiveOptions = [
+      {
+          breakpoint: '1199px',
+          numVisible: 1,
+          numScroll: 1
+      },
+      {
+          breakpoint: '991px',
+          numVisible: 2,
+          numScroll: 1
+      },
+      {
+          breakpoint: '767px',
+          numVisible: 1,
+          numScroll: 1
+      }
+  ];
   }
 
   ngOnDestroy() {
@@ -420,7 +486,7 @@ export class BlogListComponent implements OnInit, OnDestroy, OnChanges {
       if (post.id) {
         this.blogService.getCoverImage(post.id.toString()).subscribe({
           next: (imageFile) => {
-            post.coverImageUrl = 'http://localhost:5055/' + imageFile.path;
+    post.coverImageUrl = 'http://localhost:5055/' + imageFile.path.replace(/\//g, '/');
           },
           error: (error) => {
             console.error('Error loading cover image for post:', post.id, error);
@@ -476,4 +542,37 @@ export class BlogListComponent implements OnInit, OnDestroy, OnChanges {
   onLogout() {
     this.logout.emit();
   }
-} 
+
+  getSeverity(count: number): string {
+    if (count > 100) {
+      return 'success';
+    } else if (count > 50) {
+      return 'warning';
+    } else {
+      return 'info';
+    }
+  }
+
+  onTagClick(tagName: string) {
+    this.selectedTag = tagName;
+    this.isLoading = true;
+    this.blogService.getPostsByTag(tagName).subscribe({
+      next: (posts) => {
+        this.taggedPosts = posts;
+        this.fetchAndProcessPosts(this.taggedPosts);
+        this.showTaggedPosts = true;
+        this.isLoading = false;
+      },
+      error: (error) => {
+        console.error('Error loading posts by tag:', error);
+        this.isLoading = false;
+      }
+    });
+  }
+
+  clearTaggedPosts() {
+    this.showTaggedPosts = false;
+    this.taggedPosts = [];
+    this.selectedTag = '';
+  }
+}

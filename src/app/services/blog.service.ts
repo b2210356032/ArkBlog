@@ -106,10 +106,12 @@ export class BlogService {
 
   // Delete blog post
   deleteBlogPost(id: string): Observable<any> {
+    console.log('Attempting to delete post with ID:', id);
     const requestParameter: Partial<RequestParameters> = {
       controller: 'Post',
       headers: this.httpClientService.createHeaders()
     };
+    console.log('Delete request parameters:', requestParameter);
     return this.httpClientService.delete<any>(requestParameter, id);
   }
 
@@ -203,7 +205,7 @@ export class BlogService {
     return this.httpClientService.get<BlogPost[]>(requestParameter, count.toString());
   }
 
-  getTagsOfPost(postId: string): Observable<PostTag[]> {
+    getTagsOfPost(postId: string): Observable<PostTag[]> {
     const requestParameter: Partial<RequestParameters> = {
       controller: 'Tag',
       action: 'GetTagsOfPost',
@@ -211,4 +213,39 @@ export class BlogService {
     };
     return this.httpClientService.get<PostTag[]>(requestParameter, postId);
   }
+
+  getPostsByTag(tagName: string): Observable<BlogPost[]> {
+    const requestParameter: Partial<RequestParameters> = {
+      controller: 'Post',
+      action: 'GetPostsByTag',
+      headers: this.httpClientService.createHeaders()
+    };
+    return this.httpClientService.get<BlogPost[]>(requestParameter, tagName);
+  }
+
+  filterPosts(query: FilterPostsQueryRequest): Observable<FilterPostsQueryResponse> {
+    const requestParameter: Partial<RequestParameters> = {
+      controller: 'Post',
+      action: 'Filter',
+      headers: this.httpClientService.createHeaders()
+    };
+    return this.httpClientService.post<FilterPostsQueryResponse, FilterPostsQueryRequest>(requestParameter, query);
+  }
+}
+
+
+export interface FilterPostsQueryRequest {
+  PostIds?: string[];
+  TagName?: string;
+  OrderBy?: string;
+  AuthorId?: string;
+  Count?: number;
+}
+
+export interface FilterPostsQueryResponse {
+  posts: BlogPost[];
+}
+
+export interface GetPostsResponse {
+  posts: BlogPost[]; // Assuming the backend returns a 'posts' property
 } 

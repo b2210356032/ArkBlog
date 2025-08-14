@@ -236,7 +236,7 @@ import { BlogService, CreateBlogPostRequest } from '../services/blog.service';
   `]
 })
 export class NgxEditorComponent implements OnInit, OnDestroy {
-  @Output() close = new EventEmitter<void>();
+    @Output() close = new EventEmitter<{ postId: string | null, postTitle: string, htmlContent: string, published: boolean }>();
   @Output() postCreated = new EventEmitter<void>();
   @ViewChild('fileInput', { static: false }) fileInput!: ElementRef<HTMLInputElement>;
   @ViewChild('featuredFileInput', { static: false }) featuredFileInput!: ElementRef<HTMLInputElement>;
@@ -270,11 +270,15 @@ export class NgxEditorComponent implements OnInit, OnDestroy {
     this.editor?.destroy();
   }
 
-  closeEditor() {
-    this.close.emit();
+  closeEditor(published: boolean = false) {
+    this.close.emit({ postId: this.postId, postTitle: this.postTitle, htmlContent: this.html, published: published });
   }
 
   saveAsDraft() {
+    const confirmSave = confirm('Are you sure you want to save this post as a draft?');
+    if (!confirmSave) {
+      return;
+    }
     if (!this.postTitle.trim()) {
       alert('Please enter a title for your post.');
       return;
@@ -308,12 +312,24 @@ export class NgxEditorComponent implements OnInit, OnDestroy {
   }
 
   publishPost() {
+    const confirmPublish = confirm('Are you sure you want to publish this post?');
+    if (!confirmPublish) {
+      return;
+    }
     if (!this.postTitle.trim()) {
       alert('Please enter a title for your post.');
       return;
     }
     if (!this.html.trim()) {
       alert('Please add some content to your post.');
+      return;
+    }
+    if (!this.featuredImageUrl) {
+      alert('Please select a cover image for your post.');
+      return;
+    }
+    if (!this.featuredImageUrl) {
+      alert('Please select a cover image for your post.');
       return;
     }
     this.isLoading = true;
@@ -331,7 +347,7 @@ export class NgxEditorComponent implements OnInit, OnDestroy {
           alert(response.message || 'Post published successfully!');
           this.isLoading = false;
           this.postCreated.emit();
-          this.closeEditor();
+          this.closeEditor(true);
         } else {
           alert(response.message || 'Failed to publish post.');
           this.isLoading = false;

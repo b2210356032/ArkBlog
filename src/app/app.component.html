@@ -2,10 +2,24 @@
   <div class="navbar-left">
     <span class="navbar-brand">ARKBLOG</span>
     <button class="nav-button" routerLink="/" (click)="goToHome()">Home</button>
-    <div class="dropdown" (mouseenter)="showCategories = true; getCategories()" (mouseleave)="showCategories = false">
-      <button class="nav-button">Categories</button>
-      <div class="dropdown-content" *ngIf="showCategories">
-        <a *ngFor="let tag of categories" routerLink="/category/{{tag.id}}">{{tag.tagName}}</a>
+    <div class="dropdown" (mouseenter)="onCategoriesMouseEnter()" (mouseleave)="onCategoriesMouseLeave()">
+      <button #categoriesButton class="nav-button">Categories</button>
+      
+    </div>
+
+    <div class="category-hover-panel" *ngIf="showCategoryPanel" (mouseenter)="onPanelMouseEnter()" (mouseleave)="onPanelMouseLeave()">
+      <div class="panel-left">
+        <a *ngFor="let tag of categories" (mouseenter)="filterPostsByTag(tag.tagName)">{{tag.tagName}}</a>
+      </div>
+      <div class="panel-right">
+        <div *ngFor="let post of filteredPosts | slice:0:5" class="panel-post-item">
+          <div class="panel-post-image-wrapper">
+            <img [src]="post.coverImageUrl || 'https://via.placeholder.com/150'" [alt]="post.title">
+          </div>
+          <div class="post-info">
+            <h4>{{post.title}}</h4>
+          </div>
+        </div>
       </div>
     </div>
     <button class="nav-button">Authors</button>
@@ -19,6 +33,7 @@
       <button class="nav-button" (click)="openEditor()">
         <span class="plus-icon">+</span> New Post
       </button>
+      <button class="nav-button">Profile</button>
       <button class="nav-button" (click)="onLogout()">Logout</button>
     </ng-container>
   </div>
@@ -35,7 +50,7 @@
     </app-blog-list>
   </div>
   
-  <app-ngx-editor *ngIf="showEditor" (close)="onEditorClose()" (postCreated)="onPostCreated()" [postId]="postId" [authorId]="authorId"></app-ngx-editor>
+  <app-ngx-editor *ngIf="showEditor" (close)="onEditorClose($event)" (postCreated)="onPostCreated()" [postId]="postId" [authorId]="authorId"></app-ngx-editor>
   
   <app-blog-post-detail *ngIf="showPostDetail" [post]="selectedPost" (goBack)="closePostDetail()"></app-blog-post-detail>
   

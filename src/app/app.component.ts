@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, ViewChild, ElementRef } from '@angular/core';
 import { RouterOutlet, RouterModule } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { NgxEditorComponent } from './editor/ngx-editor.component';
@@ -6,7 +6,7 @@ import { BlogListComponent } from './blog-list/blog-list.component';
 import { BlogPostDetailComponent } from './blog-post-detail/blog-post-detail.component';
 import { LoginComponent } from './auth/login/login.component';
 import { RegisterComponent } from './auth/register/register.component';
-import { BlogPost, BlogService } from './services/blog.service';
+import { BlogPost, BlogService, FilterPostsQueryRequest, FilterPostsQueryResponse } from './services/blog.service';
 import { AuthService } from './services/auth.service';
 import { TagService } from './services/tag.service';
 import { HttpClientModule } from '@angular/common/http';
@@ -29,6 +29,13 @@ export class AppComponent implements OnInit {
   showCategories = false;
   categories: any[] = [];
   isLoggedIn: boolean = false;
+  showCategoryPanel: boolean = false;
+  filteredPosts: BlogPost[] = [];
+  isMouseOverPanel: boolean = false;
+  categoryPanelLeft: string = '0px';
+
+  @ViewChild(NgxEditorComponent) ngxEditorComponent!: NgxEditorComponent;
+  @ViewChild('categoriesButton') categoriesButton!: ElementRef;
 
   constructor(private blogService: BlogService, private authService: AuthService, private tagService: TagService) {
     this.authorId = this.authService.getUserId();
@@ -55,9 +62,78 @@ export class AppComponent implements OnInit {
     }
   }
 
+  onCategoriesMouseEnter(): void {
+    console.log('onCategoriesMouseEnter called');
+    this.showCategories = true;
+    this.showCategoryPanel = true;
+    this.getCategories(); // Ensure categories are loaded
+
+    // No dynamic left calculation needed, panel starts from the beginning of the page
+  }
+
+  onCategoriesMouseLeave(): void {
+    console.log('onCategoriesMouseLeave called');
+    this.showCategories = false;
+    // Give a small delay to allow mouse to enter the panel
+    setTimeout(() => {
+      if (!this.isMouseOverPanel) { // Check if mouse is not over the panel
+        this.showCategoryPanel = false;
+      }
+    }, 100);
+  }
+
+  onPanelMouseEnter(): void {
+    this.isMouseOverPanel = true;
+  }
+
+  onPanelMouseLeave(): void {
+    this.isMouseOverPanel = false;
+    this.showCategoryPanel = false;
+    this.showCategories = false; // Also hide the small dropdown
+  }
+
+  filterPostsByTag(tagName: string): void {
+    const request: FilterPostsQueryRequest = {
+      TagName: tagName,
+      Count: 5,
+      OrderBy: 'Recent'
+    };
+    this.blogService.filterPosts(request).subscribe({
+      next: (response) => {
+        this.filteredPosts = response.posts;
+        // Fetch cover images for each filtered post
+        this.filteredPosts.forEach(post => {
+          if (post.id) {
+            this.blogService.getCoverImage(post.id.toString()).subscribe({
+              next: (imageFile) => {
+                post.coverImageUrl = 'http://localhost:5055/' + imageFile.path.replace(/\\/g, '/');
+              },
+              error: (error) => {
+                console.error('Error loading cover image for post:', post.id, error);
+              }
+            });
+          }
+        });
+      },
+      error: (error) => {
+        console.error('Error fetching filtered posts:', error);
+      }
+    });
+  }
+
   goToHome(): void {
-    this.showEditor = false;
-    this.showPostDetail = false;
+    if (this.showEditor && this.ngxEditorComponent) {
+      this.confirmAndCloseEditor(
+        this.ngxEditorComponent.postId,
+        this.ngxEditorComponent.postTitle,
+        this.ngxEditorComponent.html,
+        true, // Indicate that we want to navigate home after closing
+        false // published is false when navigating from home button
+      );
+    } else {
+      this.showEditor = false;
+      this.showPostDetail = false;
+    }
   }
 
   async openEditor() {
@@ -93,19 +169,67 @@ export class AppComponent implements OnInit {
     });
   }
 
-  closeEditor() {
+  closeEditor(navigateHome: boolean = false) {
     this.showEditor = false;
     this.postId = null; // Clear post ID when editor is closed
+    if (navigateHome) {
+      // Navigate to home page
+      // You might use Router here if you have routing set up
+      // For now, we'll just ensure other components are hidden
+      this.showPostDetail = false;
+    }
   }
 
-  onEditorClose() {
-    this.closeEditor();
+  onEditorClose(event: { postId: string | null, postTitle: string, htmlContent: string, published: boolean }) {
+    this.confirmAndCloseEditor(event.postId, event.postTitle, event.htmlContent, false, event.published);
   }
 
   onPostCreated() {
     this.closeEditor();
     this.showPostDetail = false; // Ensure post detail is also closed
     this.postId = null; // Clear post ID context
+  }
+
+  confirmAndCloseEditor(postId: string | null, postTitle: string, htmlContent: string, navigateHome: boolean, published: boolean): void {
+    if (published) { // If post was just published, no need for confirmation
+      this.closeEditor(navigateHome);
+      return;
+    }
+    if (postId) { // Only ask if a post has been created
+      const confirmDiscard = confirm('Are you sure you want to go back? Any unsaved changes will be lost.');
+      if (confirmDiscard) {
+        if (!postTitle.trim() && !htmlContent.trim()) {
+          this.blogService.deleteBlogPost(postId).subscribe({
+            next: () => {
+              console.log('Empty post deleted successfully.');
+              this.closeEditor(navigateHome);
+            },
+            error: (error) => {
+              console.error('Error deleting empty post:', error);
+              this.closeEditor(navigateHome);
+            }
+          });
+        } else {
+          const confirmDelete = confirm('You have unsaved changes. Do you want to discard them and delete this post?');
+          if (confirmDelete) {
+            this.blogService.deleteBlogPost(postId).subscribe({
+              next: () => {
+                console.log('Post deleted successfully due to unsaved changes.');
+                this.closeEditor(navigateHome);
+              },
+              error: (error) => {
+                console.error('Error deleting post with unsaved changes:', error);
+                this.closeEditor(navigateHome);
+              }
+            });
+          } else {
+            return;
+          }
+        }
+      }
+    } else {
+      this.closeEditor(navigateHome);
+    }
   }
 
   viewPost(post: BlogPost) {
